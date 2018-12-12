@@ -22,6 +22,9 @@ executable game-engine
   build-depends:       base >=4.9 && <4.10
                      , hoppy-runtime
                      , qtah
+                     , timers
+                     , suspend
+                     , hxt
 
   ghc-options: -W -fwarn-unused-do-bind -dynamic
   -- hs-source-dirs:

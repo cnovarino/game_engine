@@ -21,12 +21,33 @@
   (major1) == 0 && (major2) <  5 || \
   (major1) == 0 && (major2) == 5 && (minor) <= 1)
 
+/* package hxt-9.3.1.16 */
+#define VERSION_hxt "9.3.1.16"
+#define MIN_VERSION_hxt(major1,major2,minor) (\
+  (major1) <  9 || \
+  (major1) == 9 && (major2) <  3 || \
+  (major1) == 9 && (major2) == 3 && (minor) <= 1)
+
 /* package qtah-0.6.0 */
 #define VERSION_qtah "0.6.0"
 #define MIN_VERSION_qtah(major1,major2,minor) (\
   (major1) <  0 || \
   (major1) == 0 && (major2) <  6 || \
   (major1) == 0 && (major2) == 6 && (minor) <= 0)
+
+/* package suspend-0.2.0.0 */
+#define VERSION_suspend "0.2.0.0"
+#define MIN_VERSION_suspend(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  2 || \
+  (major1) == 0 && (major2) == 2 && (minor) <= 0)
+
+/* package timers-0.2.0.3 */
+#define VERSION_timers "0.2.0.3"
+#define MIN_VERSION_timers(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  2 || \
+  (major1) == 0 && (major2) == 2 && (minor) <= 0)
 
 /* tool gcc-7 */
 #define TOOL_VERSION_gcc "7"

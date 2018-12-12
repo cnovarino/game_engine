@@ -5,12 +5,17 @@ module Main where
 
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Control.Monad (void)
+import Control.Concurrent.Timer (oneShotTimer)
+import Control.Concurrent.Suspend.Lifted (msDelay)
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
 import qualified Graphics.UI.Qtah.Gui.QPixmap as QPixmap
 import qualified Graphics.UI.Qtah.Gui.QKeyEvent as QKeyEvent
+import qualified Graphics.UI.Qtah.Gui.QBrush as QBrush
+import qualified Graphics.UI.Qtah.Gui.QColor as QColor
 import qualified Graphics.UI.Qtah.Widgets.QApplication as QApplication
+import qualified Graphics.UI.Qtah.Widgets.QAbstractScrollArea as QAbstractScrollArea
 import qualified Graphics.UI.Qtah.Widgets.QWidget as QWidget
 import qualified Graphics.UI.Qtah.Widgets.QGraphicsView as QGraphicsView
 import qualified Graphics.UI.Qtah.Widgets.QGraphicsScene as QGraphicsScene
@@ -19,7 +24,7 @@ import qualified Graphics.UI.Qtah.Widgets.QGraphicsPixmapItem as QGraphicsPixmap
 import qualified Graphics.UI.Qtah.Widgets.QBoxLayout as QBoxLayout
 import qualified Graphics.UI.Qtah.Widgets.QVBoxLayout as QVBoxLayout
 import qualified Graphics.UI.Qtah.Core.Types as Types
-import Graphics.UI.Qtah.Signal (connect_)
+--import Graphics.UI.Qtah.Signal (connect_)
 import Graphics.UI.Qtah.Event (onEvent)
 import System.Environment (getArgs)
 
@@ -37,7 +42,7 @@ data GameUI = GameUI {
 }
 
 data Player = Player {
-    sprite :: IORef Sprite,
+    sprite :: Sprite,
     name :: String,
     level :: Int,
     xp :: Int,
@@ -47,7 +52,7 @@ data Player = Player {
 
 data Sprite = Sprite {
     spriteFile :: QPixmap.QPixmap,
-    pixmapItem :: IORef QGraphicsPixmapItem.QGraphicsPixmapItem,
+    pixmapItem :: QGraphicsPixmapItem.QGraphicsPixmapItem,
     spriteStepWidth :: Int,
     spriteStepHeight :: Int,
     directions :: Int,
@@ -67,8 +72,7 @@ initPlayer = do
         spriteFile <- QPixmap.newWithFile ("/home/cristian/main_char.png" :: String)
         (spriteWidth :: Int ) <- QPixmap.width spriteFile
         (spriteHeight :: Int ) <- QPixmap.height spriteFile
-        item <- QGraphicsPixmapItem.new
-        pixmapItem' <- newIORef item
+        pixmapItem <- QGraphicsPixmapItem.new
 
         let
           currentDirection = KeyDown
@@ -77,18 +81,16 @@ initPlayer = do
           steps = 3
           spriteStepWidth = quot spriteWidth steps
           spriteStepHeight = quot spriteHeight directions
-          sprite = Sprite {
+          sprite' = Sprite {
                 spriteFile = spriteFile,
-                pixmapItem = pixmapItem',
+                pixmapItem = pixmapItem,
                 spriteStepWidth = spriteStepWidth,
                 spriteStepHeight = spriteStepHeight,
                 directions = directions,
                 steps = steps
           }
 
-        sprite' <- newIORef sprite
-
-        void(updatePixmapFromSprite (currentStep * spriteStepWidth) ((directionVal currentDirection) * spriteStepHeight) spriteStepWidth spriteStepHeight  spriteFile pixmapItem')
+        void(updatePixmapFromSprite (currentStep * spriteStepWidth) ((directionVal currentDirection) * spriteStepHeight) spriteStepWidth spriteStepHeight  spriteFile pixmapItem)
 
         return Player {
               sprite = sprite',
@@ -99,83 +101,101 @@ initPlayer = do
               xp = 0
             }
 
-updatePixmapFromSprite :: Int -> Int -> Int -> Int -> QPixmap.QPixmap -> IORef QGraphicsPixmapItem.QGraphicsPixmapItem -> IO ()
-updatePixmapFromSprite x y width height sprite pixmapItemRef = do
-        pixmapItem <- readIORef pixmapItemRef
+updatePixmapFromSprite :: Int -> Int -> Int -> Int -> QPixmap.QPixmap -> QGraphicsPixmapItem.QGraphicsPixmapItem -> IO ()
+updatePixmapFromSprite x y width height sprite pixmapItem = do
         spriteFrame <- QPixmap.copyRaw sprite x y width height
         QGraphicsPixmapItem.setPixmap pixmapItem spriteFrame
         return ()
 
 initGame :: IORef Player -> IO QWidget.QWidget
-initGame caracterRef = do
+initGame playerRef = do
   widget <- QWidget.new
   gameScene <- QGraphicsScene.new
   graphicsView <- QGraphicsView.newWithSceneAndParent gameScene widget
   mainLayout <- QVBoxLayout.new
-  character <- readIORef caracterRef
-  characterSprite <- readIORef $ sprite character
-  pixmapItem' <- readIORef $ pixmapItem characterSprite
+  player <- readIORef playerRef
 
+  movingRef <- newIORef False
+
+  QGraphicsView.setAlignment graphicsView (Types.toQtAlignment ( (Types.fromQtAlignment Types.alignLeft) + (Types.fromQtAlignment Types.alignTop)))
+
+  backgroundColor <- QColor.newRgb 0 0 0
+  backgroundBrush <-  QBrush.newWithColor backgroundColor
+
+  QGraphicsScene.setBackgroundBrush gameScene backgroundBrush
+
+  QAbstractScrollArea.setHorizontalScrollBarPolicy graphicsView Types.ScrollBarAlwaysOff
+  QAbstractScrollArea.setVerticalScrollBarPolicy graphicsView Types.ScrollBarAlwaysOff
   QBoxLayout.addWidget mainLayout graphicsView
 
   QWidget.setWindowTitle widget ("Prueba" :: String)
   QWidget.resizeRaw widget 500 350
   QWidget.setLayout widget mainLayout
 
-  QGraphicsScene.addItem gameScene pixmapItem'
+  QGraphicsScene.addItem gameScene $ pixmapItem (sprite player)
 
   _ <- onEvent widget $ \(event :: QKeyEvent.QKeyEvent) -> do
-    player <- onKeyPressEvent caracterRef event
-    writeIORef caracterRef player
-    return True
+    isMoving <- readIORef movingRef
+    if isMoving
+      then return False
+      else startMovement movingRef playerRef event
 
   return widget
+
+startMovement :: IORef Bool -> IORef Player -> QKeyEvent.QKeyEvent -> IO Bool
+startMovement movingRef playerRef event = do
+    writeIORef movingRef True
+    _ <- oneShotTimer (writeIORef movingRef False) (msDelay 50)
+    player <- readIORef playerRef
+    player' <- onKeyPressEvent player event
+    writeIORef playerRef player'
+    return True
 
 getNextStep :: Int -> Int -> Int
 getNextStep currentStep steps
                 | currentStep < (steps-1) = currentStep + 1
                 | otherwise = 0
 
-onKeyPressEvent :: IORef Player -> QKeyEvent.QKeyEvent -> IO Player
-onKeyPressEvent playerRef event = do
-    player <- readIORef playerRef
+onKeyPressEvent :: Player -> QKeyEvent.QKeyEvent -> IO Player
+onKeyPressEvent player event = do
     key <- QKeyEvent.key event
+    doKeyAction player key
 
-    doKeyAction playerRef key
-
-
-
-doKeyAction :: IORef Player -> Int -> IO Player
-doKeyAction playerRef action
-            | (show action) == (show (Types.fromQtKeys Types.keyDown)) = moveCharacterTo playerRef KeyDown
-            | (show action) == (show (Types.fromQtKeys Types.keyLeft)) = moveCharacterTo playerRef KeyLeft
-            | (show action) == (show (Types.fromQtKeys Types.keyRight)) = moveCharacterTo playerRef KeyRight
-            | (show action) == (show (Types.fromQtKeys Types.keyUp)) = moveCharacterTo playerRef KeyUp
+doKeyAction :: Player -> Int -> IO Player
+doKeyAction player action
+            | (show action) == (show (Types.fromQtKeys Types.keyDown)) = moveCharacterTo player KeyDown
+            | (show action) == (show (Types.fromQtKeys Types.keyLeft)) = moveCharacterTo player KeyLeft
+            | (show action) == (show (Types.fromQtKeys Types.keyRight)) = moveCharacterTo player KeyRight
+            | (show action) == (show (Types.fromQtKeys Types.keyUp)) = moveCharacterTo player KeyUp
             | otherwise = do
-                            player <- readIORef playerRef
                             return player
 
-moveCharacterTo :: IORef Player -> Direction -> IO Player
-moveCharacterTo playerRef direction' = do
-    player <- readIORef playerRef
-    sprite' <- readIORef $ sprite player
-    pixmapItem' <- readIORef $ pixmapItem sprite'
-    let movement
-                | (directionVal direction') == 0 = (0,2)
-                | (directionVal direction') == 1 = (negate 2,0)
-                | (directionVal direction') == 2 = (2,0)
-                | (directionVal direction') == 3 = (0,negate 2)
+moveCharacterTo :: Player -> Direction -> IO Player
+moveCharacterTo player direction' = do
+
+    let sprite' = sprite player
+        stepSize = 4
+        movement
+                | (directionVal direction') == 0 = (0,stepSize)
+                | (directionVal direction') == 1 = (negate stepSize,0)
+                | (directionVal direction') == 2 = (stepSize,0)
+                | (directionVal direction') == 3 = (0,negate stepSize)
                 | otherwise = (0,0)
 
     let player' = Player {
-      sprite = sprite player,
-      name = name player,
-      level = level player,
-      xp = xp player,
-      step = getNextStep (step player) (steps sprite'),
-      direction = direction'
+        sprite = sprite',
+        name = name player,
+        level = level player,
+        xp = xp player,
+        step = getNextStep (step player) (steps sprite'),
+        direction = direction'
     }
 
     void(updatePixmapFromSprite ((step player') * (spriteStepWidth sprite')) ((directionVal direction') * (spriteStepHeight sprite')) (spriteStepWidth sprite') (spriteStepHeight sprite')  (spriteFile sprite') (pixmapItem sprite'))
 
+    movePixmap (pixmapItem sprite') movement
+
     return player'
+
+movePixmap :: QGraphicsPixmapItem.QGraphicsPixmapItem -> (Double,Double) -> IO ()
+movePixmap pixmapItem movement = QGraphicsItem.moveBy pixmapItem (fst movement) (snd movement)

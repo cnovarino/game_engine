@@ -69,7 +69,7 @@ main = withScopedPtr (getArgs >>= QApplication.new) $ \_ -> do
 
 initPlayer :: IO Player
 initPlayer = do
-    spriteFile <- QPixmap.newWithFile ("/home/cristian/main_char.png" :: String)
+    spriteFile <- QPixmap.newWithFile ("./res/characters/main_char.png" :: String)
     (spriteWidth :: Int ) <- QPixmap.width spriteFile
     (spriteHeight :: Int ) <- QPixmap.height spriteFile
     pixmapItem <- QGraphicsPixmapItem.new

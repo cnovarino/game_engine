@@ -163,10 +163,10 @@ onKeyPressEvent player event = do
 
 doKeyAction :: Player -> Int -> IO Player
 doKeyAction player action
-            | (show action) == (show (Types.fromQtKeys Types.keyDown)) = moveCharacterTo player KeyDown
-            | (show action) == (show (Types.fromQtKeys Types.keyLeft)) = moveCharacterTo player KeyLeft
-            | (show action) == (show (Types.fromQtKeys Types.keyRight)) = moveCharacterTo player KeyRight
-            | (show action) == (show (Types.fromQtKeys Types.keyUp)) = moveCharacterTo player KeyUp
+            | action == fromEnum Types.KeyDown = moveCharacterTo player KeyDown
+            | action == fromEnum Types.KeyLeft = moveCharacterTo player KeyLeft
+            | action == fromEnum Types.KeyRight = moveCharacterTo player KeyRight
+            | action == fromEnum Types.KeyUp = moveCharacterTo player KeyUp
             | otherwise = do
                             return player
 

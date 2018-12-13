@@ -1,8 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module Main where
 
+import GameMap
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Control.Monad (void)
 import Control.Concurrent.Timer (oneShotTimer)
@@ -37,26 +39,26 @@ directionVal KeyRight = 2
 directionVal KeyUp = 3
 
 data GameUI = GameUI {
-    scene :: QGraphicsScene.QGraphicsScene,
-    player :: Player
+    scene             :: QGraphicsScene.QGraphicsScene,
+    player            :: Player
 }
 
 data Player = Player {
-    sprite :: Sprite,
-    name :: String,
-    level :: Int,
-    xp :: Int,
-    step :: Int,
-    direction :: Direction
+    sprite            :: Sprite,
+    name              :: String,
+    level             :: Int,
+    xp                :: Int,
+    step              :: Int,
+    direction         :: Direction
 }
 
 data Sprite = Sprite {
-    spriteFile :: QPixmap.QPixmap,
-    pixmapItem :: QGraphicsPixmapItem.QGraphicsPixmapItem,
-    spriteStepWidth :: Int,
-    spriteStepHeight :: Int,
-    directions :: Int,
-    steps :: Int
+    spriteFile        :: QPixmap.QPixmap,
+    pixmapItem        :: QGraphicsPixmapItem.QGraphicsPixmapItem,
+    spriteStepWidth   :: Int,
+    spriteStepHeight  :: Int,
+    directions        :: Int,
+    steps             :: Int
 }
 
 main :: IO ()
@@ -183,7 +185,7 @@ moveCharacterTo player direction' = do
 
     let player' = Player {
         sprite = sprite',
-        name = name player,
+        name = name (player :: Player),
         level = level player,
         xp = xp player,
         step = getNextStep (step player) (steps sprite'),

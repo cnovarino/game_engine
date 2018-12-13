@@ -61,86 +61,86 @@ data Sprite = Sprite {
 
 main :: IO ()
 main = withScopedPtr (getArgs >>= QApplication.new) $ \_ -> do
-  player <- initPlayer
-  charRef <- newIORef player
-  game <- initGame charRef
-  QWidget.show game
-  QCoreApplication.exec
+    player <- initPlayer
+    charRef <- newIORef player
+    game <- initGame charRef
+    QWidget.show game
+    QCoreApplication.exec
 
 initPlayer :: IO Player
 initPlayer = do
-        spriteFile <- QPixmap.newWithFile ("/home/cristian/main_char.png" :: String)
-        (spriteWidth :: Int ) <- QPixmap.width spriteFile
-        (spriteHeight :: Int ) <- QPixmap.height spriteFile
-        pixmapItem <- QGraphicsPixmapItem.new
+    spriteFile <- QPixmap.newWithFile ("/home/cristian/main_char.png" :: String)
+    (spriteWidth :: Int ) <- QPixmap.width spriteFile
+    (spriteHeight :: Int ) <- QPixmap.height spriteFile
+    pixmapItem <- QGraphicsPixmapItem.new
 
-        let
-          currentDirection = KeyDown
-          currentStep = 0
-          directions = 4
-          steps = 3
-          spriteStepWidth = quot spriteWidth steps
-          spriteStepHeight = quot spriteHeight directions
-          sprite' = Sprite {
-                spriteFile = spriteFile,
-                pixmapItem = pixmapItem,
-                spriteStepWidth = spriteStepWidth,
-                spriteStepHeight = spriteStepHeight,
-                directions = directions,
-                steps = steps
-          }
+    let
+      currentDirection = KeyDown
+      currentStep = 0
+      directions = 4
+      steps = 3
+      spriteStepWidth = quot spriteWidth steps
+      spriteStepHeight = quot spriteHeight directions
+      sprite' = Sprite {
+            spriteFile = spriteFile,
+            pixmapItem = pixmapItem,
+            spriteStepWidth = spriteStepWidth,
+            spriteStepHeight = spriteStepHeight,
+            directions = directions,
+            steps = steps
+      }
 
-        void(updatePixmapFromSprite (currentStep * spriteStepWidth) ((directionVal currentDirection) * spriteStepHeight) spriteStepWidth spriteStepHeight  spriteFile pixmapItem)
+    void(updatePixmapFromSprite (currentStep * spriteStepWidth) ((directionVal currentDirection) * spriteStepHeight) spriteStepWidth spriteStepHeight  spriteFile pixmapItem)
 
-        return Player {
-              sprite = sprite',
-              direction = currentDirection,
-              step = currentStep,
-              name = "Test",
-              level = 1,
-              xp = 0
-            }
+    return Player {
+          sprite = sprite',
+          direction = currentDirection,
+          step = currentStep,
+          name = "Test",
+          level = 1,
+          xp = 0
+    }
 
 updatePixmapFromSprite :: Int -> Int -> Int -> Int -> QPixmap.QPixmap -> QGraphicsPixmapItem.QGraphicsPixmapItem -> IO ()
 updatePixmapFromSprite x y width height sprite pixmapItem = do
-        spriteFrame <- QPixmap.copyRaw sprite x y width height
-        QGraphicsPixmapItem.setPixmap pixmapItem spriteFrame
-        return ()
+    spriteFrame <- QPixmap.copyRaw sprite x y width height
+    QGraphicsPixmapItem.setPixmap pixmapItem spriteFrame
+    return ()
 
 initGame :: IORef Player -> IO QWidget.QWidget
 initGame playerRef = do
-  widget <- QWidget.new
-  gameScene <- QGraphicsScene.new
-  graphicsView <- QGraphicsView.newWithSceneAndParent gameScene widget
-  mainLayout <- QVBoxLayout.new
-  player <- readIORef playerRef
+    widget <- QWidget.new
+    gameScene <- QGraphicsScene.new
+    graphicsView <- QGraphicsView.newWithSceneAndParent gameScene widget
+    mainLayout <- QVBoxLayout.new
+    player <- readIORef playerRef
 
-  movingRef <- newIORef False
+    movingRef <- newIORef False
 
-  QGraphicsView.setAlignment graphicsView (Types.toQtAlignment ( (Types.fromQtAlignment Types.alignLeft) + (Types.fromQtAlignment Types.alignTop)))
+    QGraphicsView.setAlignment graphicsView (Types.toQtAlignment ( (Types.fromQtAlignment Types.alignLeft) + (Types.fromQtAlignment Types.alignTop)))
 
-  backgroundColor <- QColor.newRgb 0 0 0
-  backgroundBrush <-  QBrush.newWithColor backgroundColor
+    backgroundColor <- QColor.newRgb 0 0 0
+    backgroundBrush <-  QBrush.newWithColor backgroundColor
 
-  QGraphicsScene.setBackgroundBrush gameScene backgroundBrush
+    QGraphicsScene.setBackgroundBrush gameScene backgroundBrush
 
-  QAbstractScrollArea.setHorizontalScrollBarPolicy graphicsView Types.ScrollBarAlwaysOff
-  QAbstractScrollArea.setVerticalScrollBarPolicy graphicsView Types.ScrollBarAlwaysOff
-  QBoxLayout.addWidget mainLayout graphicsView
+    QAbstractScrollArea.setHorizontalScrollBarPolicy graphicsView Types.ScrollBarAlwaysOff
+    QAbstractScrollArea.setVerticalScrollBarPolicy graphicsView Types.ScrollBarAlwaysOff
+    QBoxLayout.addWidget mainLayout graphicsView
 
-  QWidget.setWindowTitle widget ("Prueba" :: String)
-  QWidget.resizeRaw widget 500 350
-  QWidget.setLayout widget mainLayout
+    QWidget.setWindowTitle widget ("Prueba" :: String)
+    QWidget.resizeRaw widget 500 350
+    QWidget.setLayout widget mainLayout
 
-  QGraphicsScene.addItem gameScene $ pixmapItem (sprite player)
+    QGraphicsScene.addItem gameScene $ pixmapItem (sprite player)
 
-  _ <- onEvent widget $ \(event :: QKeyEvent.QKeyEvent) -> do
-    isMoving <- readIORef movingRef
-    if isMoving
-      then return False
-      else startMovement movingRef playerRef event
+    _ <- onEvent widget $ \(event :: QKeyEvent.QKeyEvent) -> do
+      isMoving <- readIORef movingRef
+      if isMoving
+          then return False
+          else startMovement movingRef playerRef event
 
-  return widget
+    return widget
 
 startMovement :: IORef Bool -> IORef Player -> QKeyEvent.QKeyEvent -> IO Bool
 startMovement movingRef playerRef event = do
@@ -163,12 +163,11 @@ onKeyPressEvent player event = do
 
 doKeyAction :: Player -> Int -> IO Player
 doKeyAction player action
-            | action == fromEnum Types.KeyDown = moveCharacterTo player KeyDown
-            | action == fromEnum Types.KeyLeft = moveCharacterTo player KeyLeft
-            | action == fromEnum Types.KeyRight = moveCharacterTo player KeyRight
-            | action == fromEnum Types.KeyUp = moveCharacterTo player KeyUp
-            | otherwise = do
-                            return player
+                | action == fromEnum Types.KeyDown = moveCharacterTo player KeyDown
+                | action == fromEnum Types.KeyLeft = moveCharacterTo player KeyLeft
+                | action == fromEnum Types.KeyRight = moveCharacterTo player KeyRight
+                | action == fromEnum Types.KeyUp = moveCharacterTo player KeyUp
+                | otherwise = do return player
 
 moveCharacterTo :: Player -> Direction -> IO Player
 moveCharacterTo player direction' = do

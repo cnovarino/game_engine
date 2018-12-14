@@ -24,9 +24,9 @@ executable game-engine
                      , qtah
                      , timers
                      , suspend
-                     , xeno
                      , containers
                      , bytestring
+                     , hxt
 
   ghc-options: -W -fwarn-unused-do-bind -dynamic
   -- hs-source-dirs:

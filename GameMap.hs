@@ -1,35 +1,50 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric #-}
+--{-# LANGUAGE DefaultSignatures #-}
 
-module GameMap where
+module GameMap( GameMap(..)
+              , Tileset(..)
+              , Layer(..)
+              , loadMap
+              ) where
 
-import qualified  Data.ByteString as B
+import GHC.Generics
+import Data.Aeson
+import Data.Monoid
+import Control.Applicative
+import qualified Data.ByteString.Lazy as BS
 
 data GameMap = GameMap{
-    version           :: String,
-    tiledversion      :: String,
-    orientation       :: String,
-    renderorder       :: String,
     width             :: Int,
     height            :: Int,
     tilewidth         :: Int,
     tileheight        :: Int,
-    infinite          :: Bool,
-    nextlayerid       :: Int,
     nextobjectid      :: Int,
-    tileset           :: Tileset,
+    tilesets          :: [Tileset],
     layers            :: [Layer]
-} deriving (Show,Eq)
+} deriving (Show,Generic)
 
 
 data Tileset = Tileset{
     firstgid          :: Int,
     source            :: String
-} deriving (Show,Eq)
+} deriving (Show,Generic)
 
 data Layer = Layer{
     id                :: Int,
     name              :: String,
     width             :: Int,
     height            :: Int,
-    layer_data        :: String
-} deriving (Show,Eq)
+    layer_data        :: [Int]
+} deriving (Show,Generic)
+
+instance FromJSON GameMap
+instance FromJSON Tileset
+instance FromJSON Layer
+
+loadMap :: FromJSON a => FilePath -> IO (Maybe a)
+loadMap filePath = do
+                file <- BS.readFile filePath
+                return $ decode file

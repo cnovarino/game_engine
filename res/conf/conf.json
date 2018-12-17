@@ -1,0 +1,11 @@
+{
+	"game_title":"Game Engine - Final PD",
+	"game_width":500,
+	"game_height":350,
+	"player_config": {
+			"player_sprite":"./res/characters/main_char.png",
+			"init_x":25,
+			"init_y":25
+		  }
+
+}

@@ -5,10 +5,12 @@
 module Main where
 
 import GameMap
+import GameConfig
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Control.Monad (void)
 import Control.Concurrent.Timer (oneShotTimer)
 import Control.Concurrent.Suspend.Lifted (msDelay)
+import Data.Maybe(fromJust)
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
@@ -63,18 +65,33 @@ data Sprite = Sprite {
 
 main :: IO ()
 main = withScopedPtr (getArgs >>= QApplication.new) $ \_ -> do
-    player <- initPlayer
-    charRef <- newIORef player
-    game <- initGame charRef
-    QWidget.show game
-    QCoreApplication.exec
+    mbGameConfig <- (loadConfig "./res/conf/conf.json" :: IO (Maybe GameConfig))
 
-initPlayer :: IO Player
-initPlayer = do
-    spriteFile <- QPixmap.newWithFile ("./res/characters/main_char.png" :: String)
+    case mbGameConfig of
+        Nothing -> error "Error Loading Config File"
+        Just (GameConfig _ _ _ _) -> do
+            let gameConfig = fromJust mbGameConfig
+            mbGameMap <- (loadMap "./res/maps/jmap1.json" :: IO (Maybe GameMap))
+
+            case mbGameMap of
+                Nothing -> error "Error Loading Map"
+                Just (GameMap _ _ _ _ _ _ _) -> do
+                    let gameMap = fromJust mbGameMap
+                    player <- initPlayer (player_config gameConfig)
+                    charRef <- newIORef player
+                    game <- initGame gameConfig charRef gameMap
+                    QWidget.show game
+                    QCoreApplication.exec
+
+
+initPlayer :: PlayerConfig -> IO Player
+initPlayer playerConfig = do
+    spriteFile <- QPixmap.newWithFile (player_sprite playerConfig)
     (spriteWidth :: Int ) <- QPixmap.width spriteFile
     (spriteHeight :: Int ) <- QPixmap.height spriteFile
     pixmapItem <- QGraphicsPixmapItem.new
+
+    --QGraphicsItem.setPosRaw pixmapItem (init_x playerConfig) (init_y playerConfig)
 
     let
       currentDirection = KeyDown
@@ -109,8 +126,8 @@ updatePixmapFromSprite x y width height sprite pixmapItem = do
     QGraphicsPixmapItem.setPixmap pixmapItem spriteFrame
     return ()
 
-initGame :: IORef Player -> IO QWidget.QWidget
-initGame playerRef = do
+initGame :: GameConfig -> IORef Player -> GameMap -> IO QWidget.QWidget
+initGame gameConfig playerRef gameMap = do
     widget <- QWidget.new
     gameScene <- QGraphicsScene.new
     graphicsView <- QGraphicsView.newWithSceneAndParent gameScene widget
@@ -130,8 +147,8 @@ initGame playerRef = do
     QAbstractScrollArea.setVerticalScrollBarPolicy graphicsView Types.ScrollBarAlwaysOff
     QBoxLayout.addWidget mainLayout graphicsView
 
-    QWidget.setWindowTitle widget ("Prueba" :: String)
-    QWidget.resizeRaw widget 500 350
+    QWidget.setWindowTitle widget (game_title gameConfig)
+    QWidget.resizeRaw widget (game_width gameConfig) (game_height gameConfig)
     QWidget.setLayout widget mainLayout
 
     QGraphicsScene.addItem gameScene $ pixmapItem (sprite player)

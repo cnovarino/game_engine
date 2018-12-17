@@ -26,7 +26,8 @@ executable game-engine
                      , suspend
                      , containers
                      , bytestring
-                     , hxt
+                     , aeson
+                     , text
 
   ghc-options: -W -fwarn-unused-do-bind -dynamic
   -- hs-source-dirs:

@@ -5,14 +5,10 @@
 
 module GameConfig( GameConfig(..)
                  , PlayerConfig(..)
-                 , loadConfig
                  ) where
 
 import GHC.Generics
 import Data.Aeson
-import Data.Monoid
-import Control.Applicative
-import qualified Data.ByteString.Lazy as BS
 
 data GameConfig = GameConfig{
     game_title        :: String,
@@ -31,8 +27,3 @@ data PlayerConfig = PlayerConfig{
 
 instance FromJSON GameConfig
 instance FromJSON PlayerConfig
-
-loadConfig :: FromJSON a => FilePath -> IO (Maybe a)
-loadConfig filePath = do
-                file <- BS.readFile filePath
-                return $ decode file

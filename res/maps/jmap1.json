@@ -32,7 +32,7 @@
  "tileset":
         {
          "firstgid":1,
-         "source":"jtileset_1.json"
+         "source":"./res/maps/jtileset_1.json"
         },
  "tilewidth":32,
  "type":"map",

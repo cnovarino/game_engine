@@ -11,6 +11,8 @@ import Control.Monad (void)
 import Control.Concurrent.Timer (oneShotTimer)
 import Control.Concurrent.Suspend.Lifted (msDelay)
 import Data.Maybe(fromJust)
+import qualified Data.ByteString.Lazy as BS
+import Data.Aeson
 
 import Foreign.Hoppy.Runtime (withScopedPtr)
 import qualified Graphics.UI.Qtah.Core.QCoreApplication as QCoreApplication
@@ -65,23 +67,29 @@ data Sprite = Sprite {
 
 main :: IO ()
 main = withScopedPtr (getArgs >>= QApplication.new) $ \_ -> do
-    mbGameConfig <- (loadConfig "./res/conf/conf.json" :: IO (Maybe GameConfig))
+    mbGameConfig <- (loadJson "./res/conf/conf.json" :: IO (Maybe GameConfig))
 
     case mbGameConfig of
         Nothing -> error "Error Loading Config File"
         Just (GameConfig _ _ _ _) -> do
             let gameConfig = fromJust mbGameConfig
-            mbGameMap <- (loadMap "./res/maps/jmap1.json" :: IO (Maybe GameMap))
+            mbGameMap <- (loadJson "./res/maps/map2.json" :: IO (Maybe GameMap))
 
             case mbGameMap of
                 Nothing -> error "Error Loading Map"
                 Just (GameMap _ _ _ _ _ _ _) -> do
                     let gameMap = fromJust mbGameMap
-                    player <- initPlayer (player_config gameConfig)
-                    charRef <- newIORef player
-                    game <- initGame gameConfig charRef gameMap
-                    QWidget.show game
-                    QCoreApplication.exec
+                    mbTilesetLink <- (loadJson (source (tileset gameMap)) :: IO (Maybe TilesetLink))
+
+                    case mbTilesetLink of
+                        Nothing -> error "Error Loading TilesetLink"
+                        Just (TilesetLink _ _) -> do
+                            let tilesetLink = fromJust mbTilesetLink
+                            player <- initPlayer (player_config gameConfig)
+                            charRef <- newIORef player
+                            game <- initGame gameConfig charRef gameMap tilesetLink
+                            QWidget.show game
+                            QCoreApplication.exec
 
 
 initPlayer :: PlayerConfig -> IO Player
@@ -126,8 +134,8 @@ updatePixmapFromSprite x y width height sprite pixmapItem = do
     QGraphicsPixmapItem.setPixmap pixmapItem spriteFrame
     return ()
 
-initGame :: GameConfig -> IORef Player -> GameMap -> IO QWidget.QWidget
-initGame gameConfig playerRef gameMap = do
+initGame :: GameConfig -> IORef Player -> GameMap -> TilesetLink -> IO QWidget.QWidget
+initGame gameConfig playerRef gameMap tilesetLink = do
     widget <- QWidget.new
     gameScene <- QGraphicsScene.new
     graphicsView <- QGraphicsView.newWithSceneAndParent gameScene widget
@@ -151,8 +159,8 @@ initGame gameConfig playerRef gameMap = do
     QWidget.resizeRaw widget (game_width gameConfig) (game_height gameConfig)
     QWidget.setLayout widget mainLayout
 
-    drawMap (pixmapItem (sprite player)) gameMap gameScene
-    --QGraphicsScene.addItem gameScene $ pixmapItem (sprite player)
+    drawMap (pixmapItem (sprite player)) gameMap gameScene tilesetLink
+    QGraphicsScene.addItem gameScene $ pixmapItem (sprite player)
 
     _ <- onEvent widget $ \(event :: QKeyEvent.QKeyEvent) -> do
       isMoving <- readIORef movingRef
@@ -163,22 +171,55 @@ initGame gameConfig playerRef gameMap = do
     return widget
 
 
-drawMap :: QGraphicsPixmapItem.QGraphicsPixmapItem -> GameMap -> QGraphicsScene.QGraphicsScene -> IO ()
-drawMap player gameMap gameScene = do
-    let mapTileset = tileset gameMap
-    tilesetFile <- QPixmap.newWithFile (source mapTileset)
+drawMap :: QGraphicsPixmapItem.QGraphicsPixmapItem -> GameMap -> QGraphicsScene.QGraphicsScene -> TilesetLink -> IO ()
+drawMap player gameMap gameScene tilesetLink = do
+    let tileset' = tileset gameMap
+        width' = width (gameMap :: GameMap)
+        height' = height (gameMap :: GameMap)
+        tilewidth' = tilewidth (gameMap :: GameMap)
+        tileheight' = tileheight (gameMap :: GameMap)
+        columns' = columns tilesetLink
+    tilesetFile <- QPixmap.newWithFile (image tilesetLink)
+    drawLayers gameScene tilesetFile width' height' tilewidth' tileheight' columns' (layers gameMap)
     return ()
 
-drawLayers :: [Layer] -> IO ()
-drawLayers [x] = drawLayer x
-drawLayers (x:xs) = do
-    drawLayer x
-    drawLayers xs
-drawLayers _ = return ()
+drawLayers :: QGraphicsScene.QGraphicsScene -> QPixmap.QPixmap -> Int -> Int -> Int -> Int -> Int -> [Layer] -> IO ()
+drawLayers gameScene tilesetFile width height tilewidth tileheight columns [x] = drawLayer gameScene tilesetFile width height tilewidth tileheight columns 0 (layer_data x)
+drawLayers gameScene tilesetFile width height tilewidth tileheight columns (x:xs) = do
+    drawLayer gameScene tilesetFile width height tilewidth tileheight columns 0 (layer_data x)
+    drawLayers gameScene tilesetFile width height tilewidth tileheight columns xs
+drawLayers _ _ _ _ _ _ _ _ = return ()
 
-drawLayer :: Layer -> IO ()
-drawLayer = undefined
+drawLayer :: QGraphicsScene.QGraphicsScene -> QPixmap.QPixmap -> Int -> Int -> Int -> Int -> Int -> Int -> [Int] -> IO ()
+drawLayer _ _ _ _ _ _ _ _ [] = return ()
 
+drawLayer gameScene tilesetFile width height tilewidth tileheight columns currentTile (0:xs) = drawLayer gameScene tilesetFile width height tilewidth tileheight columns (currentTile+1) xs
+
+drawLayer gameScene tilesetFile width height tilewidth tileheight columns currentTile [x]  = do
+    tile <- getTile tilesetFile tilewidth tileheight columns x
+    pixmapItem <- QGraphicsPixmapItem.new
+    QGraphicsPixmapItem.setPixmap pixmapItem tile
+    QGraphicsScene.addItem gameScene pixmapItem
+    QGraphicsItem.moveBy pixmapItem (fromIntegral ((getTileX width currentTile ) * tilewidth)) (fromIntegral ((getTileY width currentTile) * tileheight))
+
+drawLayer gameScene tilesetFile width height tilewidth tileheight columns currentTile (x:xs) = do
+    tile <- getTile tilesetFile tilewidth tileheight columns x
+    pixmapItem <- QGraphicsPixmapItem.new
+    QGraphicsPixmapItem.setPixmap pixmapItem tile
+    QGraphicsScene.addItem gameScene pixmapItem
+    QGraphicsItem.moveBy pixmapItem (fromIntegral ((getTileX width currentTile) * tilewidth)) (fromIntegral ((getTileY width currentTile) * tileheight))
+    drawLayer gameScene tilesetFile width height tilewidth tileheight columns (currentTile+1) xs
+
+getTile :: QPixmap.QPixmap -> Int -> Int -> Int -> Int -> IO QPixmap.QPixmap
+getTile tilesetFile tilewidth tileheight columns tilePos = do
+    extractedTile <- QPixmap.copyRaw tilesetFile ((getTileX columns tilePos) * tilewidth) ((getTileY columns tilePos) * tileheight) tilewidth tileheight
+    return extractedTile
+
+getTileX :: Int -> Int -> Int
+getTileX cols pos = (mod pos cols) -1
+
+getTileY :: Int -> Int -> Int
+getTileY cols pos = quot pos cols
 
 startMovement :: IORef Bool -> IORef Player -> QKeyEvent.QKeyEvent -> IO Bool
 startMovement movingRef playerRef event = do
@@ -236,3 +277,8 @@ moveCharacterTo player direction' = do
 
 movePixmap :: QGraphicsPixmapItem.QGraphicsPixmapItem -> (Double,Double) -> IO ()
 movePixmap pixmapItem movement = QGraphicsItem.moveBy pixmapItem (fst movement) (snd movement)
+
+loadJson :: FromJSON a => FilePath -> IO (Maybe a)
+loadJson filePath = do
+                file <- BS.readFile filePath
+                return $ decode file

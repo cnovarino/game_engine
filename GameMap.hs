@@ -2,19 +2,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
---{-# LANGUAGE DefaultSignatures #-}
 
 module GameMap( GameMap(..)
               , Tileset(..)
+              , TilesetLink(..)
               , Layer(..)
-              , loadMap
               ) where
 
 import GHC.Generics
 import Data.Aeson
-import Data.Monoid
-import Control.Applicative
-import qualified Data.ByteString.Lazy as BS
 
 data GameMap = GameMap{
     width             :: Int,
@@ -32,6 +28,11 @@ data Tileset = Tileset{
     source            :: String
 } deriving (Show,Generic)
 
+data TilesetLink = TilesetLink{
+    columns          :: Int,
+    image            :: String
+} deriving (Show,Generic)
+
 data Layer = Layer{
     id                :: Int,
     name              :: String,
@@ -42,9 +43,5 @@ data Layer = Layer{
 
 instance FromJSON GameMap
 instance FromJSON Tileset
+instance FromJSON TilesetLink
 instance FromJSON Layer
-
-loadMap :: FromJSON a => FilePath -> IO (Maybe a)
-loadMap filePath = do
-                file <- BS.readFile filePath
-                return $ decode file

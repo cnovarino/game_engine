@@ -29,11 +29,11 @@
  "renderorder":"right-up",
  "tiledversion":"1.0.3",
  "tileheight":32,
- "tilesets":[
+ "tileset":
         {
          "firstgid":1,
          "source":"jtileset_1.json"
-        }],
+        },
  "tilewidth":32,
  "type":"map",
  "version":1,

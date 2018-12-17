@@ -151,7 +151,8 @@ initGame gameConfig playerRef gameMap = do
     QWidget.resizeRaw widget (game_width gameConfig) (game_height gameConfig)
     QWidget.setLayout widget mainLayout
 
-    QGraphicsScene.addItem gameScene $ pixmapItem (sprite player)
+    drawMap (pixmapItem (sprite player)) gameMap gameScene
+    --QGraphicsScene.addItem gameScene $ pixmapItem (sprite player)
 
     _ <- onEvent widget $ \(event :: QKeyEvent.QKeyEvent) -> do
       isMoving <- readIORef movingRef
@@ -160,6 +161,24 @@ initGame gameConfig playerRef gameMap = do
           else startMovement movingRef playerRef event
 
     return widget
+
+
+drawMap :: QGraphicsPixmapItem.QGraphicsPixmapItem -> GameMap -> QGraphicsScene.QGraphicsScene -> IO ()
+drawMap player gameMap gameScene = do
+    let mapTileset = tileset gameMap
+    tilesetFile <- QPixmap.newWithFile (source mapTileset)
+    return ()
+
+drawLayers :: [Layer] -> IO ()
+drawLayers [x] = drawLayer x
+drawLayers (x:xs) = do
+    drawLayer x
+    drawLayers xs
+drawLayers _ = return ()
+
+drawLayer :: Layer -> IO ()
+drawLayer = undefined
+
 
 startMovement :: IORef Bool -> IORef Player -> QKeyEvent.QKeyEvent -> IO Bool
 startMovement movingRef playerRef event = do

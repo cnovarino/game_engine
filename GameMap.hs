@@ -22,7 +22,7 @@ data GameMap = GameMap{
     tilewidth         :: Int,
     tileheight        :: Int,
     nextobjectid      :: Int,
-    tilesets          :: [Tileset],
+    tileset           :: Tileset,
     layers            :: [Layer]
 } deriving (Show,Generic)
 
